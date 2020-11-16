@@ -1,5 +1,5 @@
 # scripts-qol
-Collection of quality-of-live scripts
+Collection of quality-of-life scripts
 
 ## 'checkimdb'
 Get a quick overview of series and movies, with information from https://www.imdb.com/
