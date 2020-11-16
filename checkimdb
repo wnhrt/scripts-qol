@@ -1,0 +1,160 @@
+#!/usr/bin/env python
+
+'''
+Script to get a quick overlook about a movie or series
+------------------------------------------------------
+Use:
+checkimdb name of the movie or series
+
+Devleoped with Python 3.8.6
+'''
+
+from locale import setlocale, LC_ALL
+setlocale(LC_ALL, '')
+
+from sys import exit, argv
+from textwrap import fill
+
+try:
+	import imdb
+except ModuleNotFoundError:
+	print('Error: You need to install the imdbpy module')
+	exit(255)
+
+BLACK   = '\033[30m'
+RED     = '\033[31m'
+GREEN   = '\033[32m'
+YELLOW  = '\033[33m'
+BLUE    = '\033[34m'
+MAGENTA = '\033[35m'
+CYAN    = '\033[36m'
+WHITE   = '\033[37m'
+
+bBLACK   = '\033[30;1m'
+bRED     = '\033[31;1m'
+bGREEN   = '\033[32;1m'
+bYELLOW  = '\033[33;1m'
+bBLUE    = '\033[34;1m'
+bMAGENTA = '\033[35;1m'
+bCYAN    = '\033[36;1m'
+bWHITE   = '\033[37;1m'
+
+ENDC      = '\033[0m'
+BOLD      = '\033[1m'
+ITALIC    = '\033[2m'
+UNDERLINE = '\033[4m'
+REVERSE   = '\033[7m'
+
+def cutAuthor(plot):
+	i = plot.find('::')
+	if i != -1:
+		return plot[:i]
+	return plot
+
+def main():
+	ia = imdb.IMDb('https')
+
+	movieName = ' '.join(argv[1:])
+	movies = ia.search_movie(movieName)[:9]
+
+	if len(movies) < 1:
+		print(f"{bRED}No film called '{UNDERLINE}{movieName}{ENDC}{bRED}' found...{ENDC}", flush=True)
+		exit(1)
+
+	movieList = GREEN
+	for number, movie in enumerate(movies, start=1):
+		movieList += f'{number}. {movie.get("title")} ({movie.get("year")})\n'
+	print(f'{movieList}{bBLUE}0. EXIT APPLICATION\n')
+
+	index = -1
+	while not (0 <= index <= len(movies)-1):
+		try:
+			index = int(input('Select movie: '))-1
+			if index == -1:
+				exit(0)
+		except ValueError:
+			print('Enter a number between 0 and 9.')
+			index = -1
+
+	movie = ia.get_movie(movies[index].movieID)
+
+	movieInfo = '\n'  # Stores all formated information, which should be printed
+
+	# Title, Year, Country Code/s and URL
+	if 'title' in movie.data:
+		title = movie.get('title')
+	else:
+		title = '*ERROR: TITLE NOT STORED*'
+	if 'year' in movie.data:
+		year = f' ({movie.get("year")}) '
+	else:
+		year = ' '
+	if 'country codes' in movie.data:
+		country_codes = f'[{"|".join(movie.get("country codes"))}]'
+	else:
+		country_codes = ''
+	movieInfo += f'{GREEN}{UNDERLINE}{title}{year}{country_codes}{ENDC}\n'
+	movieInfo += f'{ia.get_imdbURL(movie)}\n'
+
+	# Rating, Genre/s, Director/s, Number of Season/s and Time
+	movieInfo += GREEN
+	data = []
+	if 'rating' in movie.data:
+		data.append('Rating:')
+		rating = f'{GREEN}\u2605{movie.get("rating")}'
+		if 'votes' in movie.data:
+			rating += f' ({movie.get("votes"):n})'
+		data.append(rating)
+	if 'genres' in movie.data:
+		data.append('Genre/s:')
+		data.append(' | '.join(movie.get('genre')))
+	if 'director' in movie.data:
+		data.append('Director/s:')
+		data.append(' | '.join(str(director) for director in movie.get('director')))
+	if 'number of seasons' in movie.data:
+		data.append('Season/s:')
+		data.append(str(movie.get('number of seasons')))
+	if 'series years' in movie.data:
+		data.append('Time:')
+		data.append(movie.get('series years'))
+	
+	width = len(max([str(dat) for dat in data[::2]], key=len))
+	for a, b in zip(data[::2], data[1::2]):
+		movieInfo += f'{a:<{width}} {b}\n'
+
+	# Plot
+	movieInfo += BLUE
+	if 'plot' in movie.data:
+		movieInfo += '\n'
+		if len(movie['plot']) > 1:
+			plotOne = cutAuthor(movie.get('plot')[0])
+			plotTwo = cutAuthor(movie.get('plot')[1])
+			# "PLOT[1]"
+			if plotOne in plotTwo:
+				movieInfo += fill(plotTwo)
+			# "PLOT[0]\n\nPLOT[1]"
+			else:
+				movieInfo += fill(plotOne) + '\n\n' + fill(plotTwo)
+		elif len(movie.get('plot')) == 1:
+			# "PLOT[0]"
+			plotOne = cutAuthor(movie.get('plot')[0])
+			movieInfo += fill(plotOne)
+		movieInfo += '\n'
+	movieInfo += '\n'
+
+	# Actors
+	actors = movie.get('cast')[:9]
+	width = len(max([str(actor) for actor in actors], key=len))
+	movieInfo += GREEN
+	for a,b,c in zip(actors[::3], actors[1::3], actors[2::3]):
+		movieInfo += f'{str(a):<{width}}  {str(b):<{width}}  {str(c):<}\n'
+	movieInfo += f'\b{ENDC}'
+
+	print(movieInfo, flush=True)
+
+if __name__ == '__main__':
+	try:
+		main()
+	except KeyboardInterrupt:
+		print(ENDC + "\nClosed by user...", flush=True)
+
