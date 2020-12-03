@@ -10,4 +10,4 @@ A little helper for periodic breaks between work.
 
 It plays a sound and displays a notification message every **25** work and **5** break minutes (**default**).
 
-See 'worktimer --help' for configuration options.
+See `worktimer --help` for configuration options.
