@@ -1,0 +1,139 @@
+#!/bin/bash
+_WORKSOUND=${BASH_SOURCE%/*}/gong.mp3
+_BREAKSOUND=$_WORKSOUND
+_WORKTIME="25m"
+_BREAKTIME="5m"
+_QUIET=false
+_NOTIFICATION=true
+
+if /usr/bin/pidof -o %PPID -x $0 > /dev/null
+then
+	for _pid in $(/usr/bin/pidof -x $0)
+	do
+		if [ $_pid != $$ ]
+		then
+			/usr/bin/kill $_pid
+		fi
+	done	
+	exit 0
+fi
+
+function _show_help
+{
+printf \
+"Usage: worknotification [OPTION...]
+
+Executing it a second time ends the notifications.
+
+Options:
+ -h --help                 Print this information
+ -w --work-time [TIME]     Set timer for work to TIME (sleep syntax)
+ -b --break-time [TIME]    Set timer for break to TIME (sleep syntax) 
+ --work-sound [FILEPATH]   Set work notification sound to FILEPATH
+ --break-sound [FILEPATH]  Set break notification sound to FILEPATH
+ -s --sound [FILEPATH]     Set work and break notification sound to FILEPATH
+ -q --quiet                Disables notification sounds
+ -n --no-notification      Disables notification popups (including error messages)
+"
+}
+
+while :; do
+	case $1 in
+		-h|-\?|--help)
+			_show_help
+			exit 1
+			;;
+		-b|--break-time)
+			_BREAKTIME=$2
+			shift
+			;;
+		-w|--work-time)
+			_WORKTIME=$2
+			shift
+			;;
+		--break-sound)
+			_BREAKSOUND=$2
+			shift
+			;;
+		--work-sound)
+			_WORKSOUND=$2
+			shift
+			;;
+		-s|--sound)
+			_WORKSOUND=$2
+			_BREAKSOUND=$2
+			shift
+			;;
+		-q|--quiet)
+			_QUIET=true
+			shift
+			;;
+		-n|--no-notification)
+			_NOTIFICATION=false
+			shift
+			;;
+		--)
+			shift
+			break
+			;;
+		*)
+			break
+	esac
+
+	shift
+done
+
+function _playsound
+{
+	if [ "$_QUIET"  = "true" ]
+	then
+		break
+	elif [ $1 ]
+	then
+		if command -v /usr/bin/ffplay &> /dev/null
+		then
+			# ffplay does not return an error value when the given file is not found
+			_OUTPUT=$(/usr/bin/ffplay -nodisp -autoexit -loglevel error $1 2>&1)
+		elif command -v /usr/bin/mpv &> /dev/null
+		then
+			/usr/bin/mpv --no-audio-display --force-window=no $1
+		elif command -v /usr/bin/mpg123 &> /dev/null
+		then
+			/usr/bin/mpg123 -q $1
+		elif command -v /usr/bin/mplayer &> /dev/null
+		then
+			# NOT TESTED
+			/usr/bin/mplayer --vo=null $1
+		fi
+	fi
+
+	if [ "$?" -ne "0" ] || [ -n "$_OUTPUT" ] || [ ! "$1" ]
+	then
+		_sendmessage "ERROR" "NOTIFICATION SOUND NOT DEFINED/FOUND\nUse -q / --quiet to avoid this message."
+	fi
+}
+
+function _sendmessage
+{
+	if [ "$_NOTIFICATION" = "true" ]
+	then
+		/usr/bin/notify-send -i NONE --app-name="WORK NOTIFICATION" "$1" "$2"
+		if [ "$1" = "ERROR" ]
+		then
+			>&2 echo "$(date +'%H:%S')| $1: $2"
+		else
+			echo "$(date +'%H:%S')| $1: $2"
+		fi
+	fi
+}
+
+while true
+do
+	_sendmessage "Work" "$_WORKTIME"
+	_playsound $_WORKSOUND &
+	/usr/bin/sleep $_WORKTIME
+	_sendmessage "Break" "$_BREAKTIME"
+	_playsound $_BREAKSOUND &
+	/usr/bin/sleep $_BREAKTIME
+done
+
