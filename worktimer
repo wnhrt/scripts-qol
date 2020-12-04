@@ -71,11 +71,9 @@ while :; do
 			;;
 		-q|--quiet)
 			_QUIET=true
-			shift
 			;;
 		-n|--no-notification)
 			_NOTIFICATION=false
-			shift
 			;;
 		--)
 			shift
