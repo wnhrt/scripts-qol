@@ -5,6 +5,7 @@ _WORKTIME="25m"
 _BREAKTIME="5m"
 _QUIET=false
 _NOTIFICATION=true
+_BELL=false
 
 if /usr/bin/pidof -o %PPID -x $0 > /dev/null
 then
@@ -32,6 +33,7 @@ Options:
  --work-sound [FILEPATH]   Set work notification sound to FILEPATH
  --break-sound [FILEPATH]  Set break notification sound to FILEPATH
  -s --sound [FILEPATH]     Set work and break notification sound to FILEPATH
+ -a --bell                 Use system bell as sound notification (might be muted)
  -q --quiet                Disables notification sounds
  -n --no-notification      Disables notification popups (including error messages)
 "
@@ -64,6 +66,9 @@ while :; do
 			_BREAKSOUND=$2
 			shift
 			;;
+		-a|--bell)
+			_BELL=true
+			;;
 		-q|--quiet)
 			_QUIET=true
 			shift
@@ -87,7 +92,11 @@ function _playsound
 {
 	if [ "$_QUIET"  = "true" ]
 	then
-		break
+		return 0
+	elif [ "$_BELL" = "true" ]
+	then
+		/usr/bin/echo -ne "\a"
+		return 0
 	elif [ $1 ]
 	then
 		if command -v /usr/bin/ffplay &> /dev/null
